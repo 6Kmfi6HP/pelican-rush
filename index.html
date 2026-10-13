@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="description" content="大嘴鸟历险记 — 操控鹈鹕飞行捕鱼躲避障碍的3D网页游戏！">
+<meta property="og:title" content="大嘴鸟历险记 — Pelican Rush">
+<meta property="og:description" content="操控鹈鹕在海上飞行，俯冲捕鱼，挑战最高分！">
+<title>大嘴鸟历险记 — Pelican Rush</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#071420;overflow:hidden;font-family:"PingFang SC","Microsoft YaHei","Trebuchet MS",sans-serif;user-select:none;-webkit-user-select:none;touch-action:none}
+canvas{position:fixed;inset:0;width:100%!important;height:100%!important}
+#hud{position:fixed;top:0;left:0;right:0;padding:14px 18px;display:none;pointer-events:none;justify-content:space-between;align-items:flex-start;z-index:10}
+#hud.on{display:flex}
+.hl{display:flex;flex-direction:column;gap:3px}
+.hlb{font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.4);text-transform:uppercase}
+.hvl{font-size:34px;font-weight:900;color:#fff;line-height:1;text-shadow:0 2px 14px rgba(0,0,0,.5);font-variant-numeric:tabular-nums}
+.hbst{font-size:11px;color:rgba(255,210,100,.75);letter-spacing:1px;margin-top:1px}
+.lives{display:flex;gap:6px;margin-top:5px}
+.lv{width:15px;height:15px;background:#ff6b35;border-radius:50%;transition:background .3s,opacity .3s}
+.lv.gone{opacity:.18;background:#444}
+.spd{font-size:10px;color:rgba(255,210,60,.85);letter-spacing:1px;margin-top:3px}
+#combo{position:fixed;top:44%;left:50%;transform:translate(-50%,-50%);font-size:28px;font-weight:900;color:#ffd700;text-shadow:0 0 22px rgba(255,215,0,.85);pointer-events:none;opacity:0;z-index:20;transition:opacity .3s}
+#combo.on{opacity:1}
+.scr{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:36px 24px;z-index:30;background:linear-gradient(160deg,rgba(4,16,30,.96) 0%,rgba(10,50,80,.92) 100%)}
+.scr.off{display:none}
+.ttl .sub{font-size:10px;letter-spacing:6px;color:rgba(255,255,255,.38);margin-bottom:4px;text-align:center}
+.ttl h1{font-size:clamp(36px,9vw,74px);font-weight:900;color:#fff;letter-spacing:3px;line-height:1;text-align:center;text-shadow:0 0 40px rgba(100,210,255,.3)}
+.ttl .en{font-size:clamp(11px,2.2vw,18px);color:rgba(255,175,60,.9);letter-spacing:8px;margin-top:8px;text-align:center}
+.bf{font-size:68px;animation:bob 2.6s ease-in-out infinite;display:block;text-align:center}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-16px) rotate(4deg)}}
+.bst{text-align:center;color:rgba(255,255,255,.5);font-size:11px;letter-spacing:2px}
+.bst strong{color:#ffd700;font-size:20px;display:block;margin-top:4px}
+.btn{background:#ff6b35;color:#fff;border:none;border-radius:50px;padding:14px 48px;font-size:16px;font-weight:700;letter-spacing:3px;cursor:pointer;font-family:inherit;box-shadow:0 6px 30px rgba(255,107,53,.45);transition:.15s}
+.btn:hover{background:#ff8855;transform:scale(1.04)}.btn:active{transform:scale(.96)}
+.btn:focus-visible{outline:3px solid #ffd700;outline-offset:4px}
+.hint{text-align:center;color:rgba(255,255,255,.28);font-size:10px;letter-spacing:1.5px;line-height:2.2}
+.sbtn{background:transparent;border:1px solid rgba(255,255,255,.22);color:rgba(255,255,255,.55);border-radius:50px;padding:10px 28px;font-size:11px;letter-spacing:2px;cursor:pointer;font-family:inherit;transition:.2s}
+.sbtn:hover{background:rgba(255,255,255,.08)}.sbtn:focus-visible{outline:2px solid rgba(255,255,255,.5);outline-offset:3px}
+#sfb{font-size:10px;color:#7effb2;letter-spacing:2px;min-height:13px;text-align:center}
+#dflash{position:fixed;inset:0;background:rgba(255,30,30,.42);pointer-events:none;opacity:0;transition:opacity .4s;z-index:25}
+#dflash.on{opacity:1;transition:opacity 0s}
+#notice{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,.3);letter-spacing:1.5px;pointer-events:none;text-align:center;z-index:10;white-space:nowrap}
+#jstick{position:fixed;bottom:60px;left:36px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);display:none;z-index:15;touch-action:none}
+#jstick.on{display:block}
+#jknob{position:absolute;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.28);top:26px;left:26px}
+#dbtn{position:fixed;bottom:60px;right:32px;width:72px;height:72px;border-radius:50%;background:rgba(255,107,53,.35);border:2px solid rgba(255,107,53,.55);font-size:13px;font-weight:900;color:#fff;letter-spacing:1px;display:none;align-items:center;justify-content:center;z-index:15;touch-action:none}
+#dbtn.on{display:flex}
+@media(max-width:600px){.ttl h1{font-size:42px}.bf{font-size:54px}.btn{padding:12px 36px;font-size:14px}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div class="hl"><div class="hlb">得分 SCORE</div><div class="hvl" id="sdisplay">0</div><div class="hbst" id="bdisplay">最高 0</div></div>
+  <div class="hl" style="align-items:flex-end"><div class="lives"><div class="lv" id="lv0"></div><div class="lv" id="lv1"></div><div class="lv" id="lv2"></div></div><div class="spd" id="spdisplay">速度 1.0x</div></div>
+</div>
+<div id="combo"></div>
+<div id="dflash"></div>
+<div class="scr" id="ss">
+  <div class="ttl"><div class="sub">PELICAN RUSH</div><h1>大嘴鸟<br>历险记</h1><div class="en">FLY · CATCH · DODGE</div></div>
+  <div class="bf">&#x1F9A4;</div>
+  <div class="bst">历史最高<strong id="mbest">0</strong></div>
+  <button class="btn" id="startbtn">开始冒险</button>
+  <div class="hint">A/D 横移 &nbsp;·&nbsp; W/S 升降 &nbsp;·&nbsp; 空格 俯冲捕鱼<br>手机：摇杆方向 &nbsp;·&nbsp; 右侧按钮俯冲</div>
+</div>
+<div class="scr off" id="gs">
+  <div class="ttl"><div class="sub">GAME OVER</div><h1>飞行<br>结束了</h1></div>
+  <div class="bst" style="font-size:13px;letter-spacing:2px">本局得分</div>
+  <div id="gsscore" style="font-size:62px;font-weight:900;color:#fff;text-shadow:0 0 30px rgba(255,200,100,.4)">0</div>
+  <div class="bst">最高纪录<strong id="gbest">0</strong></div>
+  <button class="btn" id="restartbtn">再来一次</button>
+  <button class="sbtn" id="sharebtn">分享给朋友</button>
+  <div id="sfb"></div>
+</div>
+<div id="jstick"><div id="jknob"></div></div>
+<div id="dbtn">俯冲</div>
+<div id="notice">俯冲入海捕鱼得分 · 躲避礁石轮船海鸥</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+// ── Pelican Rush — 大嘴鸟历险记 ─────────────────────────────────────────────
+(function(){
+'use strict';
+
+// DOM
+const $ = id => document.getElementById(id);
+const hud = $('hud'), ss = $('ss'), gs = $('gs');
+const combo = $('combo'), dflash = $('dflash');
+const jstick = $('jstick'), jknob = $('jknob'), dbtn = $('dbtn');
+
+// localStorage best
+let best = parseInt(localStorage.getItem('pelican_best')||'0');
+$('mbest').textContent = best;
+
+// Three.js
+const renderer = new THREE.WebGLRenderer({canvas: $('c'), antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 600);
+
+function onResize(){
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+// Lights
+scene.add(new THREE.AmbientLight(0xfff8ee, 0.7));
+const sun = new THREE.DirectionalLight(0xffaa60, 1.1);
+sun.position.set(10, 15, -10);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0x88ccff, 0.45);
+fill.position.set(-5, 5, 5);
+scene.add(fill);
+
+// Sky
+const skyColDay  = new THREE.Color(0x87CEEB);
+const skyColDusk = new THREE.Color(0xffa07a);
+scene.background = skyColDay.clone();
+scene.fog = new THREE.FogExp2(0x87CEEB, 0.008);
+
+// Camera constants
+const CAM_OFF_Y = 4.5, CAM_OFF_Z = -14, LOOK_AHD = 22;
+const SPAWN_Z = 55;
+
+// Ocean
+const oceanGeo = new THREE.PlaneGeometry(80, 600, 28, 110);
+const oceanMat = new THREE.MeshPhongMaterial({
+  color: 0x1a6b8a, emissive: 0x062030, shininess: 70, specular: 0x44aacc, flatShading: true
+});
+const ocean = new THREE.Mesh(oceanGeo, oceanMat);
+ocean.rotation.x = -Math.PI/2;
+ocean.position.set(0, -0.1, 300);
+scene.add(ocean);
+const oPosAttr = oceanGeo.attributes.position;
+const oOrigZ = new Float32Array(oPosAttr.count);
+for(let i=0;i<oPosAttr.count;i++) oOrigZ[i] = oPosAttr.getZ(i);
+
+function animateOcean(t){
+  for(let i=0;i<oPosAttr.count;i++){
+    const x = oPosAttr.getX(i);
+    const z = oPosAttr.getZ(i);
+    oPosAttr.setZ(i, oOrigZ[i] + Math.sin(x*0.35+t*1.9)*0.38 + Math.cos(z*0.09+t*1.2)*0.45);
+  }
+  oPosAttr.needsUpdate = true;
+  oceanGeo.computeVertexNormals();
+}
+
+// Distant sea floor
+const seaFloor = new THREE.Mesh(
+  new THREE.PlaneGeometry(800,800),
+  new THREE.MeshBasicMaterial({color:0x0d4f6e})
+);
+seaFloor.rotation.x = -Math.PI/2;
+seaFloor.position.set(0,-0.2,300);
+scene.add(seaFloor);
+// ── Pelican builder ─────────────────────────────────────────────────────────
+function buildPelican(){
+  const g = new THREE.Group();
+
+  // Body — white ellipsoid
+  const bodyGeo = new THREE.SphereGeometry(0.9, 10, 7);
+  bodyGeo.scale(1, 0.75, 0.6);
+  const whiteMat = new THREE.MeshPhongMaterial({color:0xf5f0e8, flatShading:true});
+  const body = new THREE.Mesh(bodyGeo, whiteMat);
+  body.position.set(0, 0.1, 0);
+  g.add(body);
+
+  // Neck
+  const neckGeo = new THREE.CylinderGeometry(0.22, 0.32, 0.9, 7);
+  const neck = new THREE.Mesh(neckGeo, whiteMat);
+  neck.position.set(0.6, 0.5, 0);
+  neck.rotation.z = -0.6;
+  g.add(neck);
+
+  // Head
+  const headGeo = new THREE.SphereGeometry(0.38, 8, 6);
+  const head = new THREE.Mesh(headGeo, whiteMat);
+  head.position.set(1.1, 0.85, 0);
+  g.add(head);
+
+  // Beak upper
+  const beakGeo = new THREE.ConeGeometry(0.12, 0.85, 6);
+  const beakMat = new THREE.MeshPhongMaterial({color:0xff8c00, flatShading:true});
+  const beak = new THREE.Mesh(beakGeo, beakMat);
+  beak.rotation.z = Math.PI/2;
+  beak.position.set(1.9, 0.82, 0);
+  g.add(beak);
+
+  // Pouch (throat sac) — flat teardrop cone
+  const pouchGeo = new THREE.ConeGeometry(0.16, 0.6, 5);
+  const pouchMat = new THREE.MeshPhongMaterial({color:0xf0a840, flatShading:true});
+  const pouch = new THREE.Mesh(pouchGeo, pouchMat);
+  pouch.rotation.z = -Math.PI/2;
+  pouch.position.set(1.65, 0.52, 0);
+  g.add(pouch);
+
+  // Eye
+  const eyeGeo = new THREE.SphereGeometry(0.06, 5, 4);
+  const eyeMat = new THREE.MeshPhongMaterial({color:0x1a2a1a});
+  const eye = new THREE.Mesh(eyeGeo, eyeMat);
+  eye.position.set(1.35, 0.95, 0.3);
+  g.add(eye);
+
+  // Wings — flat planes that flap
+  const wingGeo = new THREE.BufferGeometry();
+  const wv = new Float32Array([
+    0,-0.05,0,  -0.2,-0.1,1.4,  -0.5,-0.05,0.9,
+    0,-0.05,0,  0,-0.1,-1.4,   -0.5,-0.05,-0.9
+  ]);
+  wingGeo.setAttribute('position', new THREE.BufferAttribute(wv, 3));
+  const wingIdx = new Uint16Array([0,1,2, 3,4,5]);
+  wingGeo.setIndex(new THREE.BufferAttribute(wingIdx, 1));
+  wingGeo.computeVertexNormals();
+  const wingMat = new THREE.MeshPhongMaterial({color:0xeae4d6, side:THREE.DoubleSide, flatShading:true});
+
+  const wL = new THREE.Mesh(wingGeo, wingMat);
+  wL.position.set(-0.2, 0.1, 0);
+  const wR = wL.clone();
+  g.add(wL); g.add(wR);
+
+  // Tail
+  const tailGeo = new THREE.ConeGeometry(0.18, 0.5, 5);
+  const tail = new THREE.Mesh(tailGeo, whiteMat);
+  tail.rotation.z = Math.PI/2;
+  tail.position.set(-1.15, 0.05, 0);
+  g.add(tail);
+
+  g.userData.wingL = wL;
+  g.userData.wingR = wR;
+  g.userData.head  = head;
+  g.userData.beak  = beak;
+  g.userData.pouch = pouch;
+
+  g.scale.setScalar(0.95);
+  return g;
+}
+
+// ── Object pool helpers ──────────────────────────────────────────────────────
+function makeFish(){
+  const g = new THREE.Group();
+  const fishMat = new THREE.MeshPhongMaterial({color:0xff5533, flatShading:true});
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.18,6,4), fishMat);
+  body.scale.set(1.7,1,0.7);
+  g.add(body);
+  const tailGeo = new THREE.ConeGeometry(0.14,0.22,4);
+  const tail = new THREE.Mesh(tailGeo, fishMat);
+  tail.rotation.z = Math.PI/2;
+  tail.position.set(-0.35,0,0);
+  g.add(tail);
+  g.visible = false;
+  return g;
+}
+
+function makeRock(){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshPhongMaterial({color:0x556655, flatShading:true});
+  const r = 0.5+Math.random()*0.8;
+  const m = new THREE.Mesh(new THREE.DodecahedronGeometry(r,0), mat);
+  m.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+  g.add(m);
+  if(Math.random()<0.5){
+    const m2 = new THREE.Mesh(new THREE.DodecahedronGeometry(r*0.6,0), mat);
+    m2.position.set(r*0.7, r*0.3, 0);
+    m2.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+    g.add(m2);
+  }
+  g.visible = false;
+  return g;
+}
+
+function makeBoat(){
+  const g = new THREE.Group();
+  const hullMat = new THREE.MeshPhongMaterial({color:0x8b5e3c, flatShading:true});
+  const deckMat = new THREE.MeshPhongMaterial({color:0xc8a465, flatShading:true});
+  const cabinMat = new THREE.MeshPhongMaterial({color:0xd4cfc2, flatShading:true});
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(3.5,0.6,1.2), hullMat);
+  g.add(hull);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(3.2,0.18,1.0), deckMat);
+  deck.position.y = 0.39;
+  g.add(deck);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.4,0.9,0.9), cabinMat);
+  cabin.position.set(0.2, 0.85, 0);
+  g.add(cabin);
+  const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.14,0.6,7), new THREE.MeshPhongMaterial({color:0x444444}));
+  stack.position.set(-0.6, 1.35, 0);
+  g.add(stack);
+  g.visible = false;
+  return g;
+}
+
+function makeGull(){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshPhongMaterial({color:0xddddcc, flatShading:true, side:THREE.DoubleSide});
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.2,6,4), mat);
+  body.scale.set(1.6,0.7,0.8);
+  g.add(body);
+  const wGeo = new THREE.PlaneGeometry(0.9,0.22);
+  const wL = new THREE.Mesh(wGeo, mat);
+  wL.position.set(0,0.05, 0.55);
+  const wR = wL.clone(); wR.position.z = -0.55;
+  g.add(wL); g.add(wR);
+  g.userData.wL = wL; g.userData.wR = wR;
+  g.visible = false;
+  return g;
+}
+// ── Game state ───────────────────────────────────────────────────────────────
+let gameState = 'menu'; // menu | playing | dead
+let score = 0, lives = 3, comboCount = 0, comboTimer = 0;
+let gameSpeed = 2.0, gameTime = 0;
+let invincible = 0;
+const SPEED_MIN = 2.0, SPEED_MAX = 10.0, SPEED_INC = 0.5, SPEED_INTERVAL = 30;
+const PELICAN_BOUNDS_R = 0.9;
+
+// Key state
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if(e.code === 'Space'){ e.preventDefault(); }
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// Pelican
+const pelican = buildPelican();
+scene.add(pelican);
+pelican.position.set(0, 4, 0);
+
+// Dive state
+let diveActive = false, diveVel = 0;
+const DIVE_FORCE = -8, DIVE_GRAVITY = 14, DIVE_MAX = -14;
+const FLY_Y_MIN = 1.5, FLY_Y_MAX = 9.0;
+let flyTargetX = 0, flyTargetY = 4;
+
+// ── Object pools ─────────────────────────────────────────────────────────────
+const POOL_SIZE = { fish: 14, rock: 10, boat: 4, gull: 8 };
+
+const fishPool   = Array.from({length: POOL_SIZE.fish},  makeFish);
+const rockPool   = Array.from({length: POOL_SIZE.rock},  makeRock);
+const boatPool   = Array.from({length: POOL_SIZE.boat},  makeBoat);
+const gullPool   = Array.from({length: POOL_SIZE.gull},  makeGull);
+
+[...fishPool, ...rockPool, ...boatPool, ...gullPool].forEach(o => scene.add(o));
+
+function getFromPool(pool){
+  return pool.find(o => !o.visible) || null;
+}
+
+// Active objects: {mesh, type, z0, x, y, radius, caught}
+const active = [];
+let spawnTimer = 0;
+const FISH_Y = -0.05; // sea surface
+const ROCK_Y = 0.3;
+const BOAT_Y = 0.1;
+const GULL_Y_BASE = 3.5;
+
+function spawnObject(t){
+  const rand = Math.random();
+  // weighted: fish 45%, rock 30%, boat 15%, gull 10%
+  let type;
+  if(rand < 0.45) type = 'fish';
+  else if(rand < 0.75) type = 'rock';
+  else if(rand < 0.90) type = 'boat';
+  else type = 'gull';
+
+  let mesh, radius, y;
+  if(type === 'fish'){
+    mesh = getFromPool(fishPool);
+    radius = 0.35; y = FISH_Y;
+  } else if(type === 'rock'){
+    mesh = getFromPool(rockPool);
+    radius = 0.85; y = ROCK_Y;
+  } else if(type === 'boat'){
+    mesh = getFromPool(boatPool);
+    radius = 1.8; y = BOAT_Y;
+  } else {
+    mesh = getFromPool(gullPool);
+    radius = 0.4; y = GULL_Y_BASE + (Math.random()-0.5)*2;
+  }
+  if(!mesh) return;
+
+  const x = (Math.random()-0.5) * 16;
+  mesh.position.set(x, y, SPAWN_Z);
+  mesh.visible = true;
+  mesh.rotation.set(0, type === 'boat' ? Math.PI : 0, 0);
+  active.push({mesh, type, x, y, radius, caught: false, baseY: y, phase: Math.random()*Math.PI*2});
+}
+
+function recycleAll(){
+  active.forEach(o => { o.mesh.visible = false; });
+  active.length = 0;
+}
+
+// ── Clouds (background) ───────────────────────────────────────────────────────
+const cloudGroup = new THREE.Group();
+scene.add(cloudGroup);
+function makeCloud(){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshPhongMaterial({color:0xfbf9f0, flatShading:true, transparent:true, opacity:0.88});
+  [[0,0,0,1.4],[1.1,0.4,0,1.0],[-1.0,0.3,0,0.9],[0.4,0.8,0,0.85]].forEach(([x,y,z,r]) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r,7,5), mat);
+    m.position.set(x,y,z); g.add(m);
+  });
+  return g;
+}
+const clouds = [];
+for(let i=0;i<7;i++){
+  const c = makeCloud();
+  c.position.set((Math.random()-0.5)*90, 8+Math.random()*6, 20+Math.random()*260);
+  cloudGroup.add(c);
+  clouds.push({mesh:c, speed: 0.6+Math.random()*0.5});
+}
+// ── Dive mechanics & flight ──────────────────────────────────────────────────
+const LATERAL_SPEED = 5.5;
+const VERTICAL_SPEED = 3.5;
+
+function updatePelican(dt){
+  // Lateral
+  let dx = 0;
+  if(keys['KeyA']||keys['ArrowLeft'])  dx -= 1;
+  if(keys['KeyD']||keys['ArrowRight']) dx += 1;
+  dx += joystick.x;
+  flyTargetX = Math.max(-11, Math.min(11, flyTargetX + dx * LATERAL_SPEED * dt));
+
+  // Vertical (only when not diving)
+  if(!diveActive){
+    let dy = 0;
+    if(keys['KeyW']||keys['ArrowUp'])   dy -= 1;
+    if(keys['KeyS']||keys['ArrowDown']) dy += 1;
+    dy -= joystick.y;
+    flyTargetY = Math.max(FLY_Y_MIN, Math.min(FLY_Y_MAX, flyTargetY - dy * VERTICAL_SPEED * dt));
+  }
+
+  // Dive input
+  if((keys['Space']||joystick.dive) && !diveActive && pelican.position.y > FLY_Y_MIN+0.2){
+    diveActive = true;
+    diveVel = DIVE_FORCE;
+  }
+
+  if(diveActive){
+    diveVel = Math.max(DIVE_MAX, diveVel + DIVE_GRAVITY * dt);
+    pelican.position.y += diveVel * dt;
+    if(pelican.position.y <= -0.3){
+      pelican.position.y = -0.3;
+      diveActive = false;
+      diveVel = 0;
+      flyTargetY = 3.5;
+      // Check fish catch at sea surface
+      checkDiveCatch();
+    }
+  } else {
+    pelican.position.y += (flyTargetY - pelican.position.y) * 5 * dt;
+  }
+
+  pelican.position.x += (flyTargetX - pelican.position.x) * 5 * dt;
+
+  // Banking tilt
+  const bank = Math.max(-0.4, Math.min(0.4, (flyTargetX - pelican.position.x) * 0.35));
+  pelican.rotation.z = -bank;
+  // Dive pitch
+  const pitch = diveActive ? Math.min(0.6, -diveVel * 0.04) : 0;
+  pelican.rotation.x = pitch;
+
+  // Wing flap animation
+  const t = performance.now() * 0.001;
+  const flapSpeed = diveActive ? 0 : (gameSpeed * 0.8);
+  const flapAmp   = diveActive ? 0.08 : 0.45;
+  const flapAngle = Math.sin(t * flapSpeed * 2.5) * flapAmp;
+  const wL = pelican.userData.wingL;
+  const wR = pelican.userData.wingR;
+  if(wL){ wL.rotation.x =  flapAngle; }
+  if(wR){ wR.rotation.x = -flapAngle; }
+
+  // Head bob
+  const headNode = pelican.userData.head;
+  if(headNode) headNode.position.y = 0.85 + Math.sin(t * gameSpeed * 1.3) * 0.05;
+}
+
+function checkDiveCatch(){
+  const px = pelican.position.x, pz = pelican.position.z;
+  let caught = false;
+  for(let i=active.length-1;i>=0;i--){
+    const o = active[i];
+    if(o.type !== 'fish') continue;
+    const dx = o.mesh.position.x - px;
+    const dz = o.mesh.position.z - pz;
+    if(Math.sqrt(dx*dx+dz*dz) < 2.2){
+      // Catch!
+      o.mesh.visible = false;
+      active.splice(i,1);
+      caught = true;
+      comboCount++;
+      comboTimer = 2.5;
+      const pts = 10 + (comboCount > 1 ? comboCount * 5 : 0);
+      addScore(pts);
+      showCombo(comboCount);
+    }
+  }
+  if(!caught){ comboCount = 0; }
+}
+
+// ── Collision detection (AABB/sphere) ────────────────────────────────────────
+function checkCollisions(){
+  if(invincible > 0) return;
+  const px = pelican.position.x;
+  const py = pelican.position.y;
+  const pz = pelican.position.z;
+  for(let i=active.length-1;i>=0;i--){
+    const o = active[i];
+    if(o.type === 'fish') continue;
+    const ox = o.mesh.position.x, oy = o.mesh.position.y, oz = o.mesh.position.z;
+    const dx = ox-px, dy = oy-py, dz = oz-pz;
+    const dist = Math.sqrt(dx*dx+dy*dy+dz*dz);
+    const hitR = PELICAN_BOUNDS_R + o.radius;
+    if(dist < hitR){
+      takeDamage();
+      break;
+    }
+  }
+}
+
+function takeDamage(){
+  if(invincible > 0) return;
+  lives--;
+  invincible = 2.5;
+  comboCount = 0;
+  dflash.classList.add('on');
+  setTimeout(()=>dflash.classList.remove('on'), 80);
+  updateLivesUI();
+  if(lives <= 0) endGame();
+}
+
+// ── Score helpers ─────────────────────────────────────────────────────────────
+function addScore(pts){
+  score += pts;
+  if(score > best){ best = score; localStorage.setItem('pelican_best', best); }
+  $('sdisplay').textContent = score;
+  $('bdisplay').textContent = '最高 ' + best;
+}
+
+let comboHideTimer = null;
+function showCombo(n){
+  if(n < 2) return;
+  combo.textContent = n + '连击！+' + (n*5) + '分';
+  combo.classList.add('on');
+  clearTimeout(comboHideTimer);
+  comboHideTimer = setTimeout(()=>combo.classList.remove('on'), 1200);
+}
+
+function updateLivesUI(){
+  for(let i=0;i<3;i++){
+    $('lv'+i).classList.toggle('gone', i >= lives);
+  }
+}
+
+// ── Virtual joystick ──────────────────────────────────────────────────────────
+const joystick = {x:0, y:0, dive:false};
+const isMobile = 'ontouchstart' in window;
+
+if(isMobile){
+  jstick.classList.add('on');
+  dbtn.classList.add('on');
+}
+
+let jActive = false, jStartX=0, jStartY=0;
+jstick.addEventListener('touchstart', e => {
+  e.preventDefault();
+  jActive=true;
+  jStartX = e.touches[0].clientX;
+  jStartY = e.touches[0].clientY;
+},{passive:false});
+document.addEventListener('touchmove', e => {
+  if(!jActive) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  const dx = t.clientX - jStartX;
+  const dy = t.clientY - jStartY;
+  const maxR = 28;
+  const r = Math.min(Math.sqrt(dx*dx+dy*dy), maxR);
+  const angle = Math.atan2(dy, dx);
+  const nx = dx/maxR, ny = dy/maxR;
+  joystick.x = Math.max(-1, Math.min(1, nx));
+  joystick.y = Math.max(-1, Math.min(1, ny));
+  const kx = Math.cos(angle)*r + 26, ky = Math.sin(angle)*r + 26;
+  jknob.style.left = kx + 'px';
+  jknob.style.top  = ky + 'px';
+},{passive:false});
+document.addEventListener('touchend', e => {
+  jActive=false;
+  joystick.x=0; joystick.y=0;
+  jknob.style.left='26px'; jknob.style.top='26px';
+});
+
+dbtn.addEventListener('touchstart', e => { e.preventDefault(); joystick.dive=true; },{passive:false});
+dbtn.addEventListener('touchend',   e => { joystick.dive=false; });
+// ── Main game loop ────────────────────────────────────────────────────────────
+let lastRAF = 0;
+
+function gameLoop(now){
+  requestAnimationFrame(gameLoop);
+  const rawDt = Math.min((now - lastRAF) * 0.001, 0.05);
+  lastRAF = now;
+  if(gameState !== 'playing') { renderer.render(scene, camera); return; }
+  const dt = rawDt;
+  gameTime += dt;
+
+  // Difficulty ramp: every 30 s add 0.5, cap at 10
+  gameSpeed = Math.min(SPEED_MAX, SPEED_MIN + Math.floor(gameTime / SPEED_INTERVAL) * SPEED_INC);
+  $('spdisplay').textContent = '速度 ' + gameSpeed.toFixed(1) + 'x';
+
+  // Invincibility countdown
+  if(invincible > 0) invincible -= dt;
+
+  // Combo timer
+  if(comboTimer > 0){ comboTimer -= dt; if(comboTimer <= 0) comboCount = 0; }
+
+  // Score: +1 per second alive
+  if(Math.floor(gameTime) > Math.floor(gameTime - dt)){
+    addScore(1);
+  }
+
+  // Sky color transition (dusk at high speed)
+  const t01 = (gameSpeed - SPEED_MIN) / (SPEED_MAX - SPEED_MIN);
+  const skyNow = skyColDay.clone().lerp(skyColDusk, t01 * 0.55);
+  scene.background = skyNow;
+  scene.fog.color = skyNow;
+
+  // Ocean animation
+  animateOcean(gameTime);
+
+  // Move ocean plane to stay under pelican Z
+  ocean.position.z = pelican.position.z + 120;
+  seaFloor.position.z = pelican.position.z;
+
+  // Spawn objects
+  spawnTimer -= dt;
+  if(spawnTimer <= 0){
+    const interval = Math.max(0.6, 2.2 - gameSpeed * 0.12);
+    spawnTimer = interval * (0.7 + Math.random() * 0.6);
+    spawnObject(gameTime);
+  }
+
+  // Advance active objects toward camera
+  for(let i = active.length-1; i >= 0; i--){
+    const o = active[i];
+    o.mesh.position.z -= gameSpeed * 12 * dt;
+    // Float fish slightly above surface
+    if(o.type === 'fish'){
+      o.mesh.position.y = o.baseY + Math.sin(gameTime * 2.8 + o.phase) * 0.12;
+    }
+    // Gull swoop
+    if(o.type === 'gull'){
+      o.mesh.position.y = o.baseY + Math.sin(gameTime * 1.8 + o.phase) * 0.6;
+      const wL = o.mesh.userData.wL, wR = o.mesh.userData.wR;
+      if(wL) wL.rotation.x =  Math.sin(gameTime * 4.5 + o.phase) * 0.3;
+      if(wR) wR.rotation.x = -Math.sin(gameTime * 4.5 + o.phase) * 0.3;
+    }
+    // Recycle if passed camera
+    if(o.mesh.position.z < pelican.position.z - 15){
+      o.mesh.visible = false;
+      active.splice(i, 1);
+    }
+  }
+
+  // Update pelican
+  updatePelican(dt);
+
+  // Collisions
+  checkCollisions();
+
+  // Pelican invincibility flash
+  pelican.visible = invincible <= 0 || (Math.floor(invincible * 8) % 2 === 0);
+
+  // Camera follows pelican smoothly
+  camera.position.x += (pelican.position.x * 0.45 - camera.position.x) * 4 * dt;
+  camera.position.y = CAM_OFF_Y;
+  camera.position.z = pelican.position.z + CAM_OFF_Z;
+  camera.lookAt(pelican.position.x * 0.3, pelican.position.y * 0.5, pelican.position.z + LOOK_AHD);
+
+  // Clouds scroll
+  clouds.forEach(c => {
+    c.mesh.position.z -= c.speed * dt * 0.7;
+    if(c.mesh.position.z < pelican.position.z - 60){
+      c.mesh.position.z = pelican.position.z + 240 + Math.random()*40;
+      c.mesh.position.x = (Math.random()-0.5)*90;
+    }
+  });
+
+  renderer.render(scene, camera);
+}
+
+// ── Game lifecycle ────────────────────────────────────────────────────────────
+function startGame(){
+  score = 0; lives = 3; gameTime = 0; gameSpeed = SPEED_MIN;
+  invincible = 0; comboCount = 0; comboTimer = 0;
+  diveActive = false; diveVel = 0;
+  flyTargetX = 0; flyTargetY = 4;
+  spawnTimer = 1.2;
+
+  $('sdisplay').textContent = '0';
+  $('bdisplay').textContent = '最高 ' + best;
+  updateLivesUI();
+
+  pelican.position.set(0, 4, 0);
+  pelican.rotation.set(0,0,0);
+  pelican.visible = true;
+
+  // Reset ocean
+  ocean.position.z = 120;
+  seaFloor.position.z = 0;
+
+  // Reset camera
+  camera.position.set(0, CAM_OFF_Y, CAM_OFF_Z);
+  camera.lookAt(0, 2, LOOK_AHD);
+
+  recycleAll();
+
+  ss.classList.add('off');
+  gs.classList.add('off');
+  hud.classList.add('on');
+  if(isMobile){ jstick.classList.add('on'); dbtn.classList.add('on'); }
+  $('notice').style.display = 'none';
+
+  gameState = 'playing';
+}
+
+function endGame(){
+  gameState = 'dead';
+  hud.classList.remove('on');
+  if(isMobile){ jstick.classList.remove('on'); dbtn.classList.remove('on'); }
+
+  $('gsscore').textContent = score;
+  $('gbest').textContent = best;
+  $('mbest').textContent = best;
+
+  setTimeout(()=>{
+    gs.classList.remove('off');
+    $('notice').style.display = '';
+  }, 800);
+
+  // Death animation: pelican spins and falls
+  let fallT = 0;
+  const fallAnim = setInterval(()=>{
+    fallT += 0.03;
+    pelican.rotation.z += 0.12;
+    pelican.position.y -= 0.15;
+    if(fallT > 1){ clearInterval(fallAnim); pelican.visible = false; }
+  }, 16);
+}
+
+// ── UI wiring ─────────────────────────────────────────────────────────────────
+$('startbtn').addEventListener('click', startGame);
+$('restartbtn').addEventListener('click', startGame);
+
+$('sharebtn').addEventListener('click', ()=>{
+  const url = location.href.split('?')[0];
+  const text = '我在《大嘴鸟历险记》得了 ' + score + ' 分！来挑战我吧 ' + url;
+  if(navigator.share){
+    navigator.share({title:'大嘴鸟历险记', text, url}).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(text).then(()=>{
+      $('sfb').textContent = '链接已复制！';
+      setTimeout(()=>{ $('sfb').textContent=''; }, 2000);
+    }).catch(()=>{
+      $('sfb').textContent = '复制失败，请手动复制链接';
+    });
+  }
+});
+
+// Keyboard start
+document.addEventListener('keydown', e => {
+  if(gameState === 'menu' && (e.code==='Enter'||e.code==='Space')){
+    e.preventDefault(); startGame();
+  }
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+camera.position.set(0, CAM_OFF_Y, CAM_OFF_Z);
+camera.lookAt(0, 2, LOOK_AHD);
+scene.fog.color = skyColDay;
+
+// Idle render on menu
+requestAnimationFrame(function idle(now){
+  if(gameState !== 'playing'){
+    animateOcean(now * 0.001);
+    renderer.render(scene, camera);
+    requestAnimationFrame(idle);
+  }
+});
+
+requestAnimationFrame(gameLoop);
+
+})(); // end IIFE
+</script>
+</body>
+</html>
